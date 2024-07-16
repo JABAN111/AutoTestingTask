@@ -15,11 +15,8 @@ public class FTPClientHandler implements IServerHandling {
             socket = new Socket(serverIP, port);
             bfReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             bfWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-            authorization(login,pwd);
-//            System.out.println("Мы выходим?...");
-//            System.out.println(bfReader.readLine());
-//            sendCommandWithoutArgs("HELP");
-//            sendCommandWithoutArgs("HELP");
+            System.out.println(bfReader.readLine());
+
         } catch (IOException e) {
             System.err.println("Connection refused: " + e.getMessage());
             System.exit(-1);
@@ -27,51 +24,49 @@ public class FTPClientHandler implements IServerHandling {
     }
 
     @Override
-    public ResponseStatus authorization(String login, String password)  {
-        sendCommandWithArgs("USER", new String[]{login});
-        sendCommandWithArgs("PASS", new String[]{password});
+    public ResponseStatus authorization(String login, String password) {
+        String statusOfLogging = "";
+        try {
+            sendCommandWithArgs("USER",new String[]{login});
+            System.out.println(bfReader.readLine());//password required...
+            sendCommandWithArgs("PASS",new String[]{password});
+            statusOfLogging = bfReader.readLine();
+            if(!statusOfLogging.startsWith("230")){
+                throw new AuthorizationFailed();
+            }
+            System.out.println(statusOfLogging);
+
+            //fixme удалить, просто временно негде тестить
+            System.out.println("закончили чтение: " + getFileFromServer("coolCode.txt", "data.txt"));
+            sendCommandWithoutArgs("SYST");
+            System.out.println(bfReader.readLine());
+        }catch (IOException e){
+            System.err.println("Authorization failed");
+        }catch (AuthorizationFailed e){
+            System.err.println(statusOfLogging);
+            return ResponseStatus.AUTHORIZATION_FAILED;
+        }
         return null;
     }
 
     @Override
-    public ResponseStatus sendCommandWithoutArgs(String command){
-//        return null;
-        try {
-            bfWriter.write(command + "\r\n");
-            bfWriter.flush();
-//            responseFromServer();
-            StringBuilder tmpResponse = new StringBuilder(); //= bfReader.readLine();
-            while(bfReader.ready()){
-                tmpResponse.append(bfReader.readLine());
-            }
-            System.out.println(tmpResponse);
-            return null;
-        } catch (IOException e) {
-            System.err.println("Exception while sending command: " + e.getMessage());
-            return ResponseStatus.FAILURE;
-        }
-
+    public ResponseStatus sendCommandWithoutArgs(String command) throws IOException {
+        bfWriter.write(command + "\r\n");
+        bfWriter.flush();
+        return null;
     }
 
     @Override
-    public ResponseStatus sendCommandWithArgs(String command, String[] args) {
-        try{
-            StringBuilder sb = new StringBuilder();
-            for (String arg : args)
-                sb.append(" ").append(arg);
-            System.out.println("("+(command+sb)+")Sending...");
-            bfWriter.write(command + sb+"\r\n");
-            bfWriter.flush();
-            String tmpResponse = bfReader.readLine();
-            System.out.println(tmpResponse);
+    public ResponseStatus sendCommandWithArgs(String command, String[] args) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        for (String arg : args)
+            sb.append(" ").append(arg);
+        System.out.println("Отправляется: " + command + sb);
+        bfWriter.write(command + sb + "\r\n");
+        bfWriter.flush();
+        return ResponseStatus.SUCCESS;
 
-            return ResponseStatus.SUCCESS;
-        }catch (IOException e){
-            System.err.println("Exception while sending command: " + e.getMessage());
-            return ResponseStatus.FAILURE;
-        }
     }
-
 
 
     @Override
@@ -89,8 +84,49 @@ public class FTPClientHandler implements IServerHandling {
     }
 
     @Override
-    public Files getFileFromServer(String path) {
-        return null;
+    public ResponseStatus getFileFromServer(String remotePath, String localPath) throws IOException {
+        sendCommandWithoutArgs("PASV");
+        String response = bfReader.readLine();
+
+        if (!response.startsWith("227")) {
+            System.out.println("Failed to enter passive mode: " + response);
+            return ResponseStatus.FAILURE;
+        }
+
+        String[] parts = response.split("[()]")[1].split(",");
+        String ip = String.join(".", parts[0], parts[1], parts[2], parts[3]);
+        int port = Integer.parseInt(parts[4]) * 256 + Integer.parseInt(parts[5]);
+        Socket dataSocket = new Socket(ip, port);
+
+        sendCommandWithoutArgs("RETR " + remotePath);
+        response = bfReader.readLine();
+        if (!response.startsWith("125")) {
+            System.err.println("Failed to retrieve file: " + response);
+            dataSocket.close();
+            return ResponseStatus.FAILURE;
+        }
+        //todo завершить запись в свой файл //а еще заебошить создателей этого протокола
+        try(BufferedReader fileReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()))){
+            StringBuilder sb = new StringBuilder();
+            String line;
+            line = fileReader.readLine();
+            sb.append(line);
+            while((line = fileReader.readLine()) != null){
+                sb.append("\n").append(line);
+            }
+            System.out.println(sb);
+        }
+
+
+        dataSocket.close();
+        response = bfReader.readLine();
+        System.out.println(response);
+//        response = readResponse();
+        if (response.startsWith("226")) {
+            return ResponseStatus.SUCCESS;
+        }
+
+        return ResponseStatus.FAILURE;
     }
 
     @Override
