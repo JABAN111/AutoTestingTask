@@ -10,7 +10,7 @@ import java.util.List;
 public interface Icommand {
     String getDescription();
 
-    String getName();
+    CommandType getType();
 
     List<Student> execute(String[] args);
 

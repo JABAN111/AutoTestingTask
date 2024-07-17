@@ -9,15 +9,15 @@ import java.util.stream.Collectors;
 
 public class GetListByNameCommand extends AbstractCommand{
     public GetListByNameCommand() {
-        super("GetByName", "Получение списка студентов по имени");
+        super(CommandType.GET_BY_NAME, "Получение списка студентов по имени");
     }
 
     @Override
     public List<Student> execute(String[] args) {
-        if(args.length != 1){
+        if(args.length != 2){
             throw new IllegalArgumentException("You should write only one name");
         }
-        String studentName = args[0];
+        String studentName = args[1];
         return super.collectionManager.getStudentList().stream().filter(student -> student.getName().equals(studentName)).collect(Collectors.toList());
     }
 }

@@ -18,12 +18,11 @@ public class FTPClientHandler implements IServerHandling {
         socket = new Socket(serverIP, port);
         bfReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         bfWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-        System.out.println(bfReader.readLine());
+        bfReader.readLine();
     }
 
     /**
      * Method that sending request for the FTP server for authorization and
-     *
      * @param login    USER login
      * @param password for the specified user
      * @return ResponseStatus of logging
@@ -40,7 +39,7 @@ public class FTPClientHandler implements IServerHandling {
             if (!statusOfLogging.startsWith("2")) {
                 throw new AuthorizationFailed();
             }
-            System.out.println(statusOfLogging);
+//            System.out.println(statusOfLogging;
         } catch (IOException e) {
             throw new AuthorizationFailed();
         }
@@ -82,7 +81,7 @@ public class FTPClientHandler implements IServerHandling {
     /**
      * By default, server can be in two stats:active and passive.This method switch context to Passive for working with files
      * @return Socket which is ready to sharing files
-     * @throws IOException if server couldn't switch context
+     //* @throws IOException if server couldn't switch context
      */
     private Socket changeModeToPasv() throws IOException {
         sendCommandWithoutArgs("PASV");
@@ -118,17 +117,18 @@ public class FTPClientHandler implements IServerHandling {
             dataSocket.close();
             return ResponseStatus.FAILURE;
         }
-        //todo завершить запись в свой файл
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()))) {
+        File file = new File(localPath);
+        try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
+            FileWriter writer = new FileWriter(localPath,false)
+        ) {
             String line;
             line = fileReader.readLine();
-            sb.append(line);
+            writer.append(line);
             while ((line = fileReader.readLine()) != null) {
-                sb.append("\n").append(line);
+                writer.append("\n").append(line);
             }
+            writer.flush();
         }
-        System.out.println("Временно записывает в StringBuilder получаемый файл: " + sb);
         dataSocket.close();
         response = bfReader.readLine();
         if (response.startsWith("226")) {

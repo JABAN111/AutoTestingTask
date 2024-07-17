@@ -7,11 +7,11 @@ import java.util.List;
 import java.util.Objects;
 
 public abstract class AbstractCommand implements Icommand{
-    private final String commandName;
+    private final CommandType commandType;
     private final String description;
     protected CollectionManager collectionManager = CollectionManager.getInstance();
-    public AbstractCommand(String commandName, String description) {
-        this.commandName = commandName;
+    public AbstractCommand(CommandType commandType, String description) {
+        this.commandType = commandType;
         this.description = description;
     }
 
@@ -21,8 +21,8 @@ public abstract class AbstractCommand implements Icommand{
     }
 
     @Override
-    public String getName() {
-        return this.commandName;
+    public CommandType getType() {
+        return commandType;
     }
 
     @Override
@@ -33,18 +33,18 @@ public abstract class AbstractCommand implements Icommand{
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AbstractCommand that = (AbstractCommand) o;
-        return Objects.equals(commandName, that.commandName) && Objects.equals(description, that.description);
+        return Objects.equals(commandType, that.commandType) && Objects.equals(description, that.description);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(commandName, description);
+        return Objects.hash(commandType, description);
     }
 
     @Override
     public String toString() {
         return "{" +
-                "'commandName: '" + commandName + '\'' +
+                "'commandName: '" + commandType + '\'' +
                 ", 'description: '" + description + '\'' +
                 '}';
     }
