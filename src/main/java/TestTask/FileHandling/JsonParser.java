@@ -6,15 +6,27 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * The JsonParser class provides methods to read and write JSON files containing student information.
+ * This class cannot be instantiated.
+ */
 public class JsonParser {
     /**
-     * Don't let anyone instantiate this class.
+     * Private constructor to prevent instantiation.
      */
-    private JsonParser(){}
+    private JsonParser() {}
 
+    /**
+     * Parses a JSON file and returns a list of students.
+     *
+     * @param filePath the path to the JSON file on the local machine
+     * @return a list of students parsed from the JSON file
+     * @throws IOException if there is an error reading the file
+     */
     public static List<Student> readJsonFile(String filePath) throws IOException {
         List<Student> students = new ArrayList<>();
         BufferedReader reader = new BufferedReader(new FileReader(filePath));
+
         StringBuilder jsonContent = new StringBuilder();
         String line;
 
@@ -26,8 +38,6 @@ public class JsonParser {
         String jsonString = jsonContent.toString();
         jsonString = jsonString.substring(jsonString.indexOf('[') + 1, jsonString.lastIndexOf(']'));
         String[] studentEntries = jsonString.split("},\\s*\\{");
-
-
 
         for (String entry : studentEntries) {
             entry = entry.replace("{", "").replace("}", "").replace("\"", "");
@@ -52,6 +62,14 @@ public class JsonParser {
 
         return students;
     }
+
+    /**
+     * Writes a list of students to a JSON file.
+     *
+     * @param students the list of students to write to the file
+     * @param filePath the path to the JSON file on the local machine
+     * @throws IOException if there is an error writing to the file
+     */
     public static void writeStudentToFile(List<Student> students, String filePath) throws IOException {
         BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
         writer.write("{\"students\": [");
@@ -71,6 +89,4 @@ public class JsonParser {
         writer.write("]}");
         writer.close();
     }
-
-
 }

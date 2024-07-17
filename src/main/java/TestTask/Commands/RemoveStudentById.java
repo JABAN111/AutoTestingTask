@@ -1,7 +1,7 @@
 package TestTask.Commands;
 
 import TestTask.DataClasses.Student;
-import TestTask.Managers.CollectionManager;
+
 
 import java.util.List;
 
@@ -23,6 +23,6 @@ public class RemoveStudentById extends AbstractCommand{
                 break;
             }
         }
-        return null;
+        return super.collectionManager.getStudentList();
     }
 }

@@ -1,18 +1,26 @@
 package TestTask.ServerHandling;
 
+import TestTask.FileHandling.JsonParser;
+import TestTask.Managers.CollectionManager;
+
 import java.io.*;
 import java.net.Socket;
 
-
+/**
+ * The FTPClientHandler class provides methods for connecting and communicating with an FTP server,
+ * authorizing a user, sending commands, and transferring files.
+ */
 public class FTPClientHandler implements IServerHandling {
     private final Socket socket;
     private final BufferedReader bfReader;
     private final BufferedWriter bfWriter;
 
     /**
-     * Public constructor of FTPClientHandler, when initialize sending a request to FTP server to connect
-     * @param serverIP of the FTP server
-     * @param port of the FTP server
+     * Constructs an FTPClientHandler and connects to the FTP server.
+     *
+     * @param serverIP the IP address of the FTP server
+     * @param port the port of the FTP server
+     * @throws IOException if an I/O error occurs when creating the socket
      */
     public FTPClientHandler(String serverIP, int port) throws IOException {
         socket = new Socket(serverIP, port);
@@ -22,11 +30,12 @@ public class FTPClientHandler implements IServerHandling {
     }
 
     /**
-     * Method that sending request for the FTP server for authorization and
-     * @param login    USER login
-     * @param password for the specified user
-     * @return ResponseStatus of logging
-     * @throws AuthorizationFailed if login or password was incorrect
+     * Authorizes the user with the FTP server.
+     *
+     * @param login the user's login name
+     * @param password the user's password
+     * @return the response status of the authorization
+     * @throws AuthorizationFailed if the login or password is incorrect
      */
     @Override
     public ResponseStatus authorization(String login, String password) throws AuthorizationFailed {
@@ -39,13 +48,19 @@ public class FTPClientHandler implements IServerHandling {
             if (!statusOfLogging.startsWith("2")) {
                 throw new AuthorizationFailed();
             }
-//            System.out.println(statusOfLogging;
         } catch (IOException e) {
             throw new AuthorizationFailed();
         }
         return ResponseStatus.SUCCESS;
     }
 
+    /**
+     * Sends a command to the FTP server without arguments.
+     *
+     * @param command the command to send
+     * @return the response status of the operation
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public ResponseStatus sendCommandWithoutArgs(String command) throws IOException {
         bfWriter.write(command + "\r\n");
@@ -53,6 +68,14 @@ public class FTPClientHandler implements IServerHandling {
         return ResponseStatus.SUCCESS;
     }
 
+    /**
+     * Sends a command to the FTP server with arguments.
+     *
+     * @param command the command to send
+     * @param args the arguments for the command
+     * @return the response status of the operation
+     * @throws IOException if an I/O error occurs
+     */
     @Override
     public ResponseStatus sendCommandWithArgs(String command, String[] args) throws IOException {
         StringBuilder sb = new StringBuilder();
@@ -64,6 +87,11 @@ public class FTPClientHandler implements IServerHandling {
         return ResponseStatus.SUCCESS;
     }
 
+    /**
+     * Disconnects from the FTP server.
+     *
+     * @return the response status of the disconnection
+     */
     @Override
     public ResponseStatus disconnect() {
         try {
@@ -72,39 +100,40 @@ public class FTPClientHandler implements IServerHandling {
             System.out.println("Disconnected from FTP server");
             return ResponseStatus.SUCCESS;
         } catch (IOException e) {
-            System.err.println("Error while disconnecting " + e.getMessage());
+            System.err.println("Error while disconnecting: " + e.getMessage());
             System.exit(-1);
             return ResponseStatus.FAILURE;
         }
     }
 
     /**
-     * By default, server can be in two stats:active and passive.This method switch context to Passive for working with files
-     * @return Socket which is ready to sharing files
-     //* @throws IOException if server couldn't switch context
+     * Switches the FTP client to passive mode.
+     *
+     * @return a socket ready for file transfer
+     * @throws IOException if an I/O error occurs
      */
     private Socket changeModeToPasv() throws IOException {
         sendCommandWithoutArgs("PASV");
         String response = bfReader.readLine();
 
         if (!response.startsWith("2")) {
-            //todo заменить на кастомную ошибку(поменять javadoc тоже)
-            throw new IOException();
+            throw new IOException("Failed to switch to passive mode");
         }
 
         String[] parts = response.split("[()]")[1].split(",");
         String ip = String.join(".", parts[0], parts[1], parts[2], parts[3]);
         int port = Integer.parseInt(parts[4]) * 256 + Integer.parseInt(parts[5]);
 
-        return new Socket(ip,port);
+        return new Socket(ip, port);
     }
 
     /**
-     * Getting from the server specified file and save it locally to a specified path
-     * @param remotePath where the file is located on server, if file didn't exist throw new exception
-     * @param localPath where to save file. If a file doesn't exist, create a new one with a specified name in a path
-     * @return status of operation
+     * Retrieves a file from the FTP server and saves it locally.
      *
+     * @param remotePath the path of the file on the server
+     * @param localPath the path to save the file locally
+     * @return the response status of the operation
+     * @throws IOException if an I/O error occurs while operating
      */
     @Override
     public ResponseStatus getFileFromServer(String remotePath, String localPath) throws IOException {
@@ -117,10 +146,8 @@ public class FTPClientHandler implements IServerHandling {
             dataSocket.close();
             return ResponseStatus.FAILURE;
         }
-        File file = new File(localPath);
         try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
-            FileWriter writer = new FileWriter(localPath,false)
-        ) {
+             FileWriter writer = new FileWriter(localPath, false)) {
             String line;
             line = fileReader.readLine();
             writer.append(line);
@@ -132,6 +159,8 @@ public class FTPClientHandler implements IServerHandling {
         dataSocket.close();
         response = bfReader.readLine();
         if (response.startsWith("226")) {
+            CollectionManager collectionManager = CollectionManager.getInstance();
+            collectionManager.setStudentList(JsonParser.readJsonFile(localPath));
             return ResponseStatus.SUCCESS;
         }
 
@@ -139,10 +168,11 @@ public class FTPClientHandler implements IServerHandling {
     }
 
     /**
-     * Sending local file to the server
-     * @param pathToLocalFile which would be sent to the server
-     * @return ResponseStatus of operation
-// * @throws IOException if
+     * Sends a local file to the FTP server.
+     *
+     * @param pathToLocalFile the path of the local file to send
+     * @return the response status of the operation
+     * @throws IOException if an I/O error occurs
      */
     @Override
     public ResponseStatus sendFile(String pathToLocalFile) throws IOException {
@@ -163,8 +193,7 @@ public class FTPClientHandler implements IServerHandling {
             return ResponseStatus.FAILURE;
         }
         try (BufferedReader bfFileReader = new BufferedReader(new FileReader(file));
-             BufferedWriter bfSocketWriter = new BufferedWriter(new OutputStreamWriter(dataSocket.getOutputStream()))
-        ) {
+             BufferedWriter bfSocketWriter = new BufferedWriter(new OutputStreamWriter(dataSocket.getOutputStream()))) {
             String line;
             while ((line = bfFileReader.readLine()) != null) {
                 bfSocketWriter.write(line);
@@ -179,6 +208,4 @@ public class FTPClientHandler implements IServerHandling {
 
         return ResponseStatus.FAILURE;
     }
-
-
 }
