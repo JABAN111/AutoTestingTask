@@ -1,8 +1,9 @@
 package TestTask.ServerHandling;
 
+import java.io.IOException;
 import java.nio.file.Files;
 
 public interface IGetCommands {
 //    File getFile()
-    Files getFileFromServer(String path);
+    ResponseStatus getFileFromServer(String remotePath, String localPath) throws IOException;
 }

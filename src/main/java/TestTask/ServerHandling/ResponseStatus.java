@@ -2,5 +2,6 @@ package TestTask.ServerHandling;
 
 public enum ResponseStatus {
     SUCCESS,
-    FAILURE
+    FAILURE,
+    AUTHORIZATION_FAILED
 }
