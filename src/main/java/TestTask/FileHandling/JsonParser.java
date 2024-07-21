@@ -62,7 +62,6 @@ public class JsonParser {
             if(id != 0)//find at least one student in input file
                 students.add(new Student(id, name));
         }
-        System.out.println(students);
         return students;
     }
 

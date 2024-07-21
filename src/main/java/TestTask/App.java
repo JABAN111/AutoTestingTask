@@ -82,6 +82,7 @@ public class App {
                         LOGGER.log(Level.SEVERE, "Invalid argument", e.getMessage());
                     }
                 } else {
+                    reader.close();
                     handleDisconnect(ftpClient);
                     break;
                 }
