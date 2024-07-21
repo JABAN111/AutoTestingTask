@@ -47,6 +47,9 @@ public class JsonParser {
 
             for (String pair : keyValuePairs) {
                 String[] keyValue = pair.split(":");
+                if(keyValue.length < 2) {
+                    continue;
+                }
                 String key = keyValue[0].trim();
                 String value = keyValue[1].trim();
 
@@ -56,10 +59,10 @@ public class JsonParser {
                     name = value;
                 }
             }
-
-            students.add(new Student(id, name));
+            if(id != 0)//find at least one student in input file
+                students.add(new Student(id, name));
         }
-
+        System.out.println(students);
         return students;
     }
 

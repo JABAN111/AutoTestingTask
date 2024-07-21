@@ -1,5 +1,6 @@
 package TestTask.Commands;
 
+import TestTask.Commands.Exception.InvalidArgs;
 import TestTask.DataClasses.Student;
 
 import java.util.List;
@@ -9,10 +10,6 @@ import java.util.List;
  */
 public interface Icommand {
     String getDescription();
-
-    CommandType getType();
-
-    List<Student> execute(String[] args);
-
+    List<Student> execute(String[] args) throws InvalidArgs;
 }
 

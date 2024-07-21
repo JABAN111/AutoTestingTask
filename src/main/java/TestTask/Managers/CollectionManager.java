@@ -32,11 +32,11 @@ public class CollectionManager {
         }
         return collectionManager;
     }
-
     /**
      * @return the list of students
      */
     public List<Student> getStudentList() {
+        studentList.sort(Student::compareTo);
         return studentList;
     }
 

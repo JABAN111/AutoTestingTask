@@ -1,5 +1,6 @@
 package TestTask.Commands;
 
+import TestTask.Commands.Exception.InvalidArgs;
 import TestTask.DataClasses.Student;
 import TestTask.Managers.CollectionManager;
 
@@ -8,7 +9,7 @@ import java.util.Objects;
 
 /**
  * The AbstractCommand class serves as a base class for all command types.
- * It implements the Icommand interface and provides common functionality for commands.
+ * It implements the <code>Icommand</code> interface and provides common functionality for commands.
  */
 public abstract class AbstractCommand implements Icommand {
     private final CommandType commandType;
@@ -27,8 +28,6 @@ public abstract class AbstractCommand implements Icommand {
     }
 
     /**
-     * Returns the description of the command.
-     *
      * @return the description of the command
      */
     @Override
@@ -36,15 +35,6 @@ public abstract class AbstractCommand implements Icommand {
         return this.description;
     }
 
-    /**
-     * Returns the type of the command(name).
-     *
-     * @return the type of the command
-     */
-    @Override
-    public CommandType getType() {
-        return commandType;
-    }
 
     /**
      * Executes the command with the given arguments.
@@ -53,7 +43,7 @@ public abstract class AbstractCommand implements Icommand {
      * @return a list of students resulting from the command execution
      */
     @Override
-    public abstract List<Student> execute(String[] args);
+    public abstract List<Student> execute(String[] args) throws InvalidArgs;
 
     @Override
     public boolean equals(Object o) {

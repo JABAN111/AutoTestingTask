@@ -1,5 +1,7 @@
 package TestTask.Commands;
 
+import TestTask.Commands.Exception.InvalidArgs;
+
 import java.util.*;
 
 /**
@@ -23,10 +25,10 @@ public class CommandFactory {
      * @return the command instance associated with the specified command type
      * @throws IllegalArgumentException if the command type is invalid
      */
-    public static AbstractCommand getCommand(CommandType commandType) {
+    public static AbstractCommand getCommand(CommandType commandType) throws InvalidArgs {
         AbstractCommand command = commandMap.get(commandType);
         if (command == null) {
-            throw new IllegalArgumentException("Invalid command type: " + commandType);
+            throw new InvalidArgs("Invalid command type: " + commandType);
         }
         return command;
     }

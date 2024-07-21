@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * The Student class is a POJO (Plain Old Java Object) class that holds information about students.
  */
-public class Student {
+public class Student implements Comparable<Student> {
     private final int id;
     private String name;
 
@@ -73,5 +73,10 @@ public class Student {
     @Override
     public int hashCode() {
         return Objects.hash(id, name);
+    }
+
+    @Override
+    public int compareTo(Student o) {
+        return this.name.compareTo(o.name);
     }
 }

@@ -1,5 +1,6 @@
 package TestTask.Commands;
 
+import TestTask.Commands.Exception.InvalidArgs;
 import TestTask.DataClasses.Student;
 
 
@@ -11,12 +12,19 @@ public class RemoveStudentById extends AbstractCommand{
     }
 
     @Override
-    public List<Student> execute(String[] args) {
+    public List<Student> execute(String[] args) throws InvalidArgs {
+        if(args[1] == null || args[1].isEmpty()){
+            throw new InvalidArgs("Invalid student id");
+        }
         if(args.length != 2){
-            throw new IllegalArgumentException("You should write only one id");
+            throw new InvalidArgs("You should write only one id");
+        }
+
+        int id = Integer.parseInt(args[1]);
+        if(id <= 0){
+            throw new InvalidArgs("Student id should be greater than 0");
         }
         List<Student> list = collectionManager.getStudentList();
-        int id = Integer.parseInt(args[1]);
         for (int i = 0; i < list.size(); i++) {
             if(list.get(i).getId() == id){
                 list.remove(i);

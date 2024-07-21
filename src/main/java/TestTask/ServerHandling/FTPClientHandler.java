@@ -1,16 +1,21 @@
 package TestTask.ServerHandling;
 
-import TestTask.FileHandling.JsonParser;
-import TestTask.Managers.CollectionManager;
+import TestTask.ServerHandling.Exceptions.AuthorizationFailed;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The FTPClientHandler class provides methods for connecting and communicating with an FTP server,
  * authorizing a user, sending commands, and transferring files.
  */
 public class FTPClientHandler implements IServerHandling {
+    private static final Logger LOGGER = Logger.getLogger(FTPClientHandler.class.getName());
+    private static final String DISCONNECTED_MESSAGE = "Disconnected from FTP server";
+    private static final String ERROR_DISCONNECTING_MESSAGE = "Error while disconnecting: ";
+
     private final Socket socket;
     private final BufferedReader bfReader;
     private final BufferedWriter bfWriter;
@@ -39,19 +44,18 @@ public class FTPClientHandler implements IServerHandling {
      */
     @Override
     public ResponseStatus authorization(String login, String password) throws AuthorizationFailed {
-        String statusOfLogging;
         try {
             sendCommandWithArgs("USER", new String[]{login});
-            bfReader.readLine(); // Password required...
+            bfReader.readLine(); // ftp: Password required...
             sendCommandWithArgs("PASS", new String[]{password});
-            statusOfLogging = bfReader.readLine();
+            String statusOfLogging = bfReader.readLine();
             if (!statusOfLogging.startsWith("2")) {
                 throw new AuthorizationFailed();
             }
+            return ResponseStatus.SUCCESS;
         } catch (IOException e) {
             throw new AuthorizationFailed();
         }
-        return ResponseStatus.SUCCESS;
     }
 
     /**
@@ -78,11 +82,11 @@ public class FTPClientHandler implements IServerHandling {
      */
     @Override
     public ResponseStatus sendCommandWithArgs(String command, String[] args) throws IOException {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(command);
         for (String arg : args) {
             sb.append(" ").append(arg);
         }
-        bfWriter.write(command + sb + "\r\n");
+        bfWriter.write(sb.append("\r\n").toString());
         bfWriter.flush();
         return ResponseStatus.SUCCESS;
     }
@@ -97,11 +101,10 @@ public class FTPClientHandler implements IServerHandling {
         try {
             sendCommandWithoutArgs("QUIT");
             socket.close();
-            System.out.println("Disconnected from FTP server");
+            LOGGER.info(DISCONNECTED_MESSAGE);
             return ResponseStatus.SUCCESS;
         } catch (IOException e) {
-            System.err.println("Error while disconnecting: " + e.getMessage());
-            System.exit(-1);
+            LOGGER.log(Level.SEVERE, ERROR_DISCONNECTING_MESSAGE, e);
             return ResponseStatus.FAILURE;
         }
     }
@@ -137,75 +140,82 @@ public class FTPClientHandler implements IServerHandling {
      */
     @Override
     public ResponseStatus getFileFromServer(String remotePath, String localPath) throws IOException {
-        Socket dataSocket = changeModeToPasv();
-        String response;
-        sendCommandWithArgs("RETR", new String[]{remotePath});
-        response = bfReader.readLine();
-        if (!response.startsWith("150") && !response.startsWith("125")) {
-            System.err.println("Failed to retrieve file: " + response);
-            dataSocket.close();
-            return ResponseStatus.FAILURE;
-        }
-        try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
-             FileWriter writer = new FileWriter(localPath, false)) {
-            String line;
-            line = fileReader.readLine();
-            writer.append(line);
-            while ((line = fileReader.readLine()) != null) {
-                writer.append("\n").append(line);
-            }
-            writer.flush();
-        }
-        dataSocket.close();
-        response = bfReader.readLine();
-        if (response.startsWith("226")) {
-            CollectionManager collectionManager = CollectionManager.getInstance();
-            collectionManager.setStudentList(JsonParser.readJsonFile(localPath));
-            return ResponseStatus.SUCCESS;
-        }
+        validateFilePaths(remotePath, localPath);
 
-        return ResponseStatus.FAILURE;
+        try (Socket dataSocket = changeModeToPasv()) {
+            sendCommandWithArgs("RETR", new String[]{remotePath});
+            String response = bfReader.readLine();
+            if (!response.startsWith("1")) {
+                LOGGER.severe("Failed to retrieve file: " + response);
+                return ResponseStatus.FAILURE;
+            }
+
+            try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
+                 FileWriter writer = new FileWriter(localPath)) {
+                copyFileContent(fileReader, writer);
+            }
+
+            response = bfReader.readLine();
+            return response.startsWith("2") ? ResponseStatus.SUCCESS : ResponseStatus.FAILURE;
+        }
     }
 
     /**
      * Sends a local file to the FTP server.
      *
      * @param pathToLocalFile the path of the local file to send
+     *
      * @return the response status of the operation
      * @throws IOException if an I/O error occurs
      */
     @Override
     public ResponseStatus sendFile(String pathToLocalFile) throws IOException {
-        Socket dataSocket = changeModeToPasv();
-        String response;
+        validateFilePath(pathToLocalFile);
 
-        File file = new File(pathToLocalFile);
-        if (!file.exists() || !file.canRead()) {
-            System.err.println("File does not exist or cannot be read: " + pathToLocalFile);
-            dataSocket.close();
-            return ResponseStatus.FAILURE;
+        try (Socket dataSocket = changeModeToPasv()) {
+            File file = new File(pathToLocalFile);
+            if (!file.exists() || !file.canRead()) {
+                LOGGER.severe("File does not exist or cannot be read: " + pathToLocalFile);
+                throw new FileNotFoundException();
+            }
+
+            sendCommandWithArgs("STOR", new String[]{file.getName()});
+            String response = bfReader.readLine();
+            if (!response.startsWith("1")) {
+                LOGGER.severe("Failed to store file: " + response);
+                return ResponseStatus.FAILURE;
+            }
+
+            try (BufferedReader bfFileReader = new BufferedReader(new FileReader(file));
+                 BufferedWriter bfSocketWriter = new BufferedWriter(new OutputStreamWriter(dataSocket.getOutputStream()))) {
+                copyFileContent(bfFileReader, bfSocketWriter);
+            }
+
+            response = bfReader.readLine();
+            return response.startsWith("2") ? ResponseStatus.SUCCESS : ResponseStatus.FAILURE;
         }
-        sendCommandWithArgs("STOR", new String[]{file.getName()});
-        response = bfReader.readLine();
-        if (!response.startsWith("150") && !response.startsWith("125")) {
-            System.err.println("Failed to store file: " + response);
-            dataSocket.close();
-            return ResponseStatus.FAILURE;
-        }
-        try (BufferedReader bfFileReader = new BufferedReader(new FileReader(file));
-             BufferedWriter bfSocketWriter = new BufferedWriter(new OutputStreamWriter(dataSocket.getOutputStream()))) {
-            String line;
-            while ((line = bfFileReader.readLine()) != null) {
-                bfSocketWriter.write(line);
+    }
+
+    private void validateFilePaths(String... paths) throws FileNotFoundException {
+        for (String path : paths) {
+            if (path == null || path.isEmpty()) {
+                throw new FileNotFoundException("Path cannot be null or empty");
             }
         }
+    }
 
-        dataSocket.close();
-        response = bfReader.readLine();
-        if (response.startsWith("226")) {
-            return ResponseStatus.SUCCESS;
+    private void validateFilePath(String path) throws FileNotFoundException {
+        if (path == null || path.isEmpty()) {
+            throw new FileNotFoundException("Path cannot be null or empty");
         }
+    }
 
-        return ResponseStatus.FAILURE;
+    private void copyFileContent(BufferedReader reader, Writer writer) throws IOException {
+        String line;
+        while ((line = reader.readLine()) != null) {
+            writer.write(line);
+            writer.write(System.lineSeparator());
+        }
+        writer.flush();
     }
 }

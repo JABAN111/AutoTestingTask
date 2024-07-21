@@ -1,6 +1,8 @@
 package TestTask.ServerHandling;
 
 
+import TestTask.ServerHandling.Exceptions.AuthorizationFailed;
+
 import java.io.IOException;
 
 public interface IServerHandling extends IPutCommands,IGetCommands{
